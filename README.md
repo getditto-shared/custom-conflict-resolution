@@ -8,25 +8,9 @@ the Ditto SDK in a client-side app running in the browser.
 
 There are multiple ways to implement custom conflict resolution logic in Ditto.
 
-By default Ditto will inspect writes ont he same property and compare logica
-timestamps in order to resolve conflicts. This is called last-write-wins. This
-is very efficient and works similarly to HTTP-backed centralized databases, with 
-one extra improvement. Instead of resolving writes at the server,  where writes
-are based on the time they are received, Ditto resolves them based on the time
-they were *written*. This is beneifical because it reduces complexity
-needed on the application layer, as end-users can reason about conflicts much
-easie. This means that writes are written in order based on each device's
-hybrid logical clock, even when disconnected. Writes that are old are garbage
-collected to maintain performance. This works the same in other centralized
-systems where old data is discarded. This well for the majority of use cases
-and is more performant compared to operational transforms or op-logs which keep
-the entire history of the database.
+By default, Ditto will inspect writes on the same property and compare logical timestamps in order to resolve conflicts. This is called last-write-wins. This approach is very efficient and works similarly to HTTP-backed centralized databases, with one extra improvement. Instead of resolving writes at the server, where writes are ordered based on the time they are received, Ditto resolves them based on the time they were *written*. This is beneficial because it reduces complexity needed on the application layer, as end-users can reason about conflicts much more easily. This means that writes are ordered based on each device's hybrid logical clock, even when disconnected. Writes that are old are garbage collected to maintain performance. This works the same as in other centralized systems where old data is discarded. This works well for the majority of use cases and is more performant compared to  op-logs which keep the entire history of the database.
 
-However, there some scenarios in which you may want more direct control over
-data provenance. In a typical HTTP-backed system, you'd write an HTTP
-middleware layer. In Ditto, you can do the same at the application logic layer.
-This is typically done after reading data from the `observer` and passing that
-data back to the UI. This is called a *Materialized View.*
+However, there are some scenarios in which you may want more direct control over data provenance. In a typical HTTP-backed system, you'd write an HTTP middleware layer. In Ditto, you can do the same at the application logic layer. This is typically done after reading data from the `observer` and passing that data back to the UI. This is called a *Materialized View.*
 
 ### Caveats
 
