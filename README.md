@@ -12,6 +12,8 @@ By default, Ditto will inspect writes on the same property and compare logical t
 
 However, there are some scenarios in which you may want more direct control over data provenance. In a typical HTTP-backed system, you'd write an HTTP middleware layer. In Ditto, you can do the same at the application logic layer. This is typically done after reading data from the `observer` and passing that data back to the UI. This is called a *Materialized View.*
 
+This demo application implements materialized views using a role-based conflict resolution system. It utilizes two collections: `tasks` and `tasks_overrides`. Junior users write to the `tasks` collection, while Senior users write to the `tasks_overrides` collection. The app combines data from both collections client-side, with override tasks always taking precedence over regular tasks when they share the same ID. This pattern demonstrates how to implement custom business logic for data merging while maintaining the performance benefits of Ditto's native conflict resolution within each collection.
+
 ### Caveats
 
 Materialized Views in Ditto today have tradeoffs:
