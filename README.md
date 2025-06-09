@@ -1,4 +1,4 @@
-# Ditto JS Web Quickstart App 🚀
+# Implementing Materialized Views in Ditto 🚀
 
 This directory contains Ditto's quickstart app for in-browser web applications.
 This app uses Vite along with Typescript and React, and shows how to include
