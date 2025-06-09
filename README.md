@@ -23,9 +23,19 @@ and is more performant compared to operational transforms or op-logs which keep
 the entire history of the database.
 
 However, there some scenarios in which you may want more direct control over
-data provenance. In a typical MongoDB-backed system, you'd write an HTTP
-middleware layer that stitches together data to provide a stable source of
-truth. In Ditto
+data provenance. In a typical HTTP-backed system, you'd write an HTTP
+middleware layer. In Ditto, you can do the same at the application logic layer.
+This is typically done after reading data from the `observer` and passing that
+data back to the UI. This is called a *Materialized View.*
+
+### Caveats
+
+Materialized Views in Ditto today have tradeoffs:
+
+- This example resolves the latest version of the data after reading from both collections. If you want the authoritative source of truth to exist in a particular collection, we recommend implementing this logic as a response to the change data capture from Ditto server, or as a trigger in MongoDB.
+- The conflict resolution happens at the application layer, which means each peer must implement the same logic to ensure consistency across all devices.
+- Performance can be impacted when dealing with large datasets since the merge operation happens on every observer callback.
+- This pattern works best for scenarios where Senior users have authority over Junior users' data, but may not be suitable for all collaborative editing use cases.
 
 ## Getting Started
 

@@ -2,7 +2,6 @@ import {
   Ditto,
   IdentityOnlinePlayground,
   StoreObserver,
-  SyncSubscription,
   init,
 } from '@dittolive/ditto';
 import './App.css';
@@ -33,7 +32,7 @@ const App = () => {
   const [error, setError] = useState<Error | null>(null);
   const ditto = useRef<Ditto | null>(null);
   const tasksObserver = useRef<StoreObserver | null>(null);
-  const seniorObserver = useRef<StoreObserver | null>(null);
+  const tasksOverridesObserver = useRef<StoreObserver | null>(null);
 
   const [syncActive, setSyncActive] = useState<boolean>(true);
   const [promisedInitialization, setPromisedInitialization] =
@@ -41,9 +40,9 @@ const App = () => {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<Role>('Junior');
 
-  const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [juniorTasks, setJuniorTasks] = useState<Task[]>([]);
-  const [seniorTasks, setSeniorTasks] = useState<Task[]>([]);
+  const [materializedViewTasks, setMaterializedViewTasks] = useState<Task[] | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskOverrides, setTaskOverrides] = useState<Task[]>([]);
 
   useEffect(() => {
     const initializeDitto = async () => {
@@ -79,29 +78,29 @@ const App = () => {
 
         // Register subscriptions for both collections
          ditto.current.sync.registerSubscription(
-          'SELECT * FROM junior_tasks',
+          'SELECT * FROM tasks',
         );
 
         // Register subscriptions for both collections
         ditto.current.sync.registerSubscription(
-          'SELECT * FROM senior_tasks',
+          'SELECT * FROM tasks_overrides',
         );
 
         // Register observer for senior tasks
-        seniorObserver.current =ditto.current.store.registerObserver<Task>(
-          'SELECT * FROM senior_tasks WHERE deleted=false',
-          (senior_results) => {
-            const seniors = senior_results.items.map((item) => item.value);
-            setSeniorTasks(seniors);
+        tasksOverridesObserver.current =ditto.current.store.registerObserver<Task>(
+          'SELECT * FROM tasks_overrides WHERE deleted=false',
+          (overrides) => {
+            const results = overrides.items.map((item) => item.value);
+            setTaskOverrides(results);
           }
         );
 
         // Register observer for junior tasks
         tasksObserver.current = ditto.current.store.registerObserver<Task>(
-          'SELECT * FROM junior_tasks WHERE deleted=false', 
-          (junior_results) => {
-            const juniors = junior_results.items.map((item) => item.value);
-            setJuniorTasks(juniors);
+          'SELECT * FROM tasks WHERE deleted=false', 
+          (results) => {
+            const tasks = results.items.map((item) => item.value);
+            setTasks(tasks);
           }
         );
 
@@ -122,29 +121,14 @@ const App = () => {
   useEffect(() => {
     const taskMap = new Map<string, Task>();
     
-    // Add junior tasks first
-    juniorTasks.forEach(task => {
+    // Add regular tasks first
+    tasks.forEach(task => {
       taskMap.set(task._id, task);
     });
     
-    // Use senior tasks, overriding junior tasks with same ID
-    seniorTasks.forEach(task => {
-      const existing = taskMap.get(task._id);
-      if (!existing) {
-        taskMap.set(task._id, task);
-      } else {
-        // Senior always wins in conflicts
-        if (task.lastModifiedBy === 'Senior' && existing.lastModifiedBy === 'Junior') {
-          taskMap.set(task._id, task);
-        } else if (existing.lastModifiedBy === 'Senior' && task.lastModifiedBy === 'Junior') {
-          // Keep existing Senior version
-        } else {
-          // If both same role, use most recent
-          if (task.lastModifiedAt > existing.lastModifiedAt) {
-            taskMap.set(task._id, task);
-          }
-        }
-      }
+    // Override tasks always win, regardless of metadata
+    taskOverrides.forEach(task => {
+      taskMap.set(task._id, task);
     });
     
     const resolvedTasks = Array.from(taskMap.values()).sort((a, b) => {
@@ -152,8 +136,8 @@ const App = () => {
       return 0;
     });
     
-    setTasks(resolvedTasks);
-  }, [juniorTasks, seniorTasks]);
+    setMaterializedViewTasks(resolvedTasks);
+  }, [tasks, taskOverrides]);
 
   const toggleSync = () => {
     if (syncActive) {
@@ -167,7 +151,7 @@ const App = () => {
   // https://docs.ditto.live/sdk/latest/crud/create
   const createTask = async (title: string) => {
     try {
-      const collection = userRole === 'Senior' ? 'senior_tasks' : 'junior_tasks';
+      const collection = userRole === 'Senior' ? 'tasks_overrides' : 'tasks';
       await ditto.current?.store.execute(
         `INSERT INTO ${collection} DOCUMENTS (:task)`,
         {
@@ -189,7 +173,7 @@ const App = () => {
   // https://docs.ditto.live/sdk/latest/crud/update
   const editTask = async (id: string, title: string) => {
     try {
-      const collection = userRole === 'Senior' ? 'senior_tasks' : 'junior_tasks';
+      const collection = userRole === 'Senior' ? 'tasks_overrides' : 'tasks';
       
       await ditto.current?.store.execute(
         `INSERT INTO ${collection} DOCUMENTS (:task) ON ID CONFLICT DO UPDATE`,
@@ -212,7 +196,7 @@ const App = () => {
 
   const toggleTask = async (task: Task) => {
     try {
-      const collection = userRole === 'Senior' ? 'senior_tasks' : 'junior_tasks';
+      const collection = userRole === 'Senior' ? 'tasks_overrides' : 'tasks';
       await ditto.current?.store.execute(
         `UPDATE ${collection} SET done=:done, lastModifiedBy=:lastModifiedBy, lastModifiedAt=:lastModifiedAt WHERE _id=:id`,
         {
@@ -230,19 +214,18 @@ const App = () => {
   // https://docs.ditto.live/sdk/latest/crud/delete#soft-delete-pattern
   const deleteTask = async (task: Task) => {
     try {
-      const collection = userRole === 'Senior' ? 'senior_tasks' : 'junior_tasks';
+      const collection = userRole === 'Senior' ? 'tasks_overrides' : 'tasks';
       
       await ditto.current?.store.execute(
         `UPDATE ${collection} SET deleted=true, lastModifiedBy=:lastModifiedBy, lastModifiedAt=:lastModifiedAt WHERE _id=:id`,
         {
           id: task._id,
-          done: !task.done,
           lastModifiedBy: userRole,
           lastModifiedAt: Date.now(),
         },
       );
     } catch (error) {
-      console.error('Failed to edit task:', error);
+      console.error('Failed to delete task:', error);
     }
   };
 
@@ -285,7 +268,7 @@ const App = () => {
         />
         <UserRole currentRole={userRole} onRoleChange={handleRoleChange} />
         <TaskList
-          tasks={tasks}
+          tasks={materializedViewTasks}
           onCreate={createTask}
           onEdit={editTask}
           onToggle={toggleTask}
