@@ -4,8 +4,8 @@
 - Conflict-free merge logic: Documents no longer conflict; simultaneous states are clearly visible.
 - Application-level merge resolution: Push complexity to application logic, which improves developer clarity and system robustness.
 - Audit & Compliance: Conflicting states are preserved for investigation and compliance needs.
-- Enhanced observability: Developers gain easier debugging and an audit trail for each state change.
-- Offline Resilience: No single leader = higher store uptime.
+- Enhanced observability: Developers gain easier debugging and an audit trail for each change.
+- Offline Resilience: No single leader = higher uptime.
 
 ### Overview
 
