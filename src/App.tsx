@@ -33,6 +33,7 @@ const App = () => {
   const ditto = useRef<Ditto | null>(null);
   const tasksObserver = useRef<StoreObserver | null>(null);
   const tasksOverridesObserver = useRef<StoreObserver | null>(null);
+  const [count, setCount] = useState<number>(0);
 
   const [syncActive, setSyncActive] = useState<boolean>(true);
   const [promisedInitialization, setPromisedInitialization] =
@@ -65,6 +66,10 @@ const App = () => {
         // Create a new Ditto instance with the identity
         // https://docs.ditto.live/sdk/latest/install-guides/js#integrating-ditto-and-starting-sync
         ditto.current = new Ditto(identity);
+        await ditto.current?.store.execute("ALTER SYSTEM SET dql_enable_preview_mode = true");
+
+        let value = await ditto.current?.store.execute("SELECT count(*) FROM tasks_overrides");
+        setCount(value?.items[0] && value.items[0].value);
 
         // Initialize transport config
         ditto.current.updateTransportConfig((config) => {
@@ -168,6 +173,8 @@ const App = () => {
     } catch (error) {
       console.error('Failed to create task:', error);
     }
+    let value = await ditto.current?.store.execute("SELECT count(*) FROM tasks_overrides");
+    setCount(value?.items[0].value)
   };
 
   // https://docs.ditto.live/sdk/latest/crud/update
@@ -258,6 +265,7 @@ const App = () => {
   return (
     <div className="h-screen w-full bg-gray-100">
       <div className="h-full w-full flex flex-col container mx-auto items-center">
+        <div> {count}</div>
         {error && <ErrorMessage error={error} />}
         <DittoInfo
           appId={identity.appID}
